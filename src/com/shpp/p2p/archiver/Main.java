@@ -67,6 +67,10 @@ public class Main implements Constants {
         else {
             fileIn = args[offset];
             fileOut = args[offset + 1];
+            if (fileIn.equals(fileOut)) {
+                System.out.println("Error: name can't be the same for input and output file");
+                System.exit(FAILURE);
+            }
             isArchiving = args[0].equals(ARCHIVE) || (!args[offset].endsWith(".par") && offset == 0);
         }
     }
