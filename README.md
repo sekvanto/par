@@ -32,9 +32,9 @@ Run
 
 Optional flags:
 
-`-a` Explicit flag to forcefully archive first file into second file.
+`-a` Explicit flag to forcefully archive first file into second file
 
-`-u` Explicit flag to unarchive.
+`-u` Explicit flag to unarchive
 
 
 If zero filenames are specified, program archives the default file ("test.txt").
