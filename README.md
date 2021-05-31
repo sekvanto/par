@@ -58,7 +58,8 @@ par v1.0 compresses 30 MB per second. The extent of compression depends on file 
 ☑  Add Huffman coding support\
 ▢  Add adaptive Huffman coding (efficient for images), LZW\
 ▢  Modify program structure, in particular reduce the usage of static methods/fields\
-▢  Reduce size of archive heading
+▢  Reduce size of archive heading\
+▢  Add support for multithreading
 
 # Architecture/technical details
 
