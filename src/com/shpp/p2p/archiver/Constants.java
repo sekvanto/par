@@ -8,14 +8,17 @@ public interface Constants {
     /* Default input file */
     String DEFAULT_FILEIN = "test.txt";
 
+    /* Archive signature */
+    byte ARCH_SIGNATURE = 0x3a;
+
     /* Print extra info? */
     boolean VERBOSE = true;
 
+    /* The number of all possible unique bytes */
+    int MAX_UNIQUE_BYTES = 256;
+
     /* Block size in bytes */
     int BLOCK_SIZE = 65536;
-
-    /* Bits in one byte */
-    int BITS_IN_BYTE = 8;
 
     /* Console options */
     String ARCHIVE   = "-a";

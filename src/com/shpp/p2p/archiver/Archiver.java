@@ -1,8 +1,7 @@
 package com.shpp.p2p.archiver;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedList;
 
 /**
  * This module is responsible for packing/unpacking files,
@@ -13,7 +12,7 @@ public class Archiver implements Constants {
     private static long                 startTime;    /* Start time in milliseconds */
     private static BufferedInputStream  input;        /* Buffered input */
     private static BufferedOutputStream output;       /* Buffered output */
-    private static byte[]               buffer;       /* Buffer for storing temporary data (parts of files) */
+    public  static byte[]               buffer;       /* Buffer for storing temporary data (parts of files) */
     private static ArchiveHeading       heading;      /* Archive heading */
 
 
@@ -35,133 +34,213 @@ public class Archiver implements Constants {
 
         /* Initialize archive heading */
         heading = new ArchiveHeading();
-        heading.decompressedDataSize = Main.fileInSize;
+        heading.signature = ARCH_SIGNATURE;
 
         if (VERBOSE)
             System.out.println("Compressing the file: " + fileIn + "\n\n" + "Saving to file: " + fileOut + "\n");
 
         /* Otherwise return failure if exception occurs */
         try {
-            /* Find table sequences size in bits */
-            int seqSize = determineSequencesBitSize(fileIn); /* Side effect: initializes heading.table */
+            if (!isFileCorrect(fileIn)) {
+                System.out.println("Incorrect file: contains less than 2 unique bytes");
+                return FAILURE;
+            }
+            EncodingTreeNode tree = ArchiveHeading.buildHuffmanTree(fileIn);
+            flattenTree(tree);
             writeHeading();
-            compressFileInBlocks(seqSize);
-            post(fileOut);
+            Sequence[] map = new Sequence[MAX_UNIQUE_BYTES];
+            map = buildMap(tree, map, 0, 0);
+            heading.ignoreBits = compressInBlocks(map);
         } catch (Exception e) {
             e.printStackTrace();
             return FAILURE;
+        } finally {
+            post(fileOut);
         }
+
+        /* Rewriting first heading field */
+        overwriteIgnoreBits(fileOut);
         return 0;
     }
 
     /**
-     * Determines the number of unique bytes in buffered input,
-     * based on which determines the size of associated sequences in table in bits (1-8);
-     * passes unique bytes to a function, which creates association codes table
+     * Determines the number of unique bytes in file
+     * Returns true if the file has 2+ unique bytes
      */
-    private static int determineSequencesBitSize(String fileIn) {
-        ArrayList<Byte> uniqueBytes = new ArrayList<>();
-        try {
-            BufferedInputStream readBytes = new BufferedInputStream(new FileInputStream(fileIn));
-            int i = readBytes.read();
-            while (i != -1) {
-                if (!uniqueBytes.contains((byte) i))
-                    uniqueBytes.add((byte) i);
+    private static boolean isFileCorrect(String fileIn) {
+        try (BufferedInputStream readBytes = new BufferedInputStream(new FileInputStream(fileIn))) {
+            int firstByte  = readBytes.read();
+            int secondByte = firstByte;
 
-                if (uniqueBytes.size() == 256) /* If all possible bytes were found in file */
-                    break;
+            while (secondByte != -1) {
+                if (firstByte != secondByte)
+                    return true;
 
                 // Reads next byte from the file
-                i = readBytes.read();
+                secondByte = readBytes.read();
             }
-            readBytes.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return false;
+    }
 
-        int bits = findNumberOfBits(uniqueBytes.size());
+    /**
+     * Given a huffman encoding tree, flattens it and initializes
+     * heading.treeShape, treeLeaves, and their sizes
+     */
+    private static void flattenTree(EncodingTreeNode tree) {
+        heading.treeShape  = new LinkedList<>();
+        heading.treeLeaves = new LinkedList<>();
 
-        if (VERBOSE) {
-            System.out.println("Unique bytes: " + uniqueBytes.size() + "\n");
-            System.out.println("Associated sequences in table will have " + bits + " bits.\n");
+        heading.treeShape  = flattenShape(tree, heading.treeShape);
+        heading.treeLeaves = flattenLeaves(tree, heading.treeLeaves);
+
+        /* Initialize tree shape size in bytes */
+        heading.treeShapeSize = (byte) (heading.treeShape.size() / Byte.SIZE);
+        if (heading.treeShape.size() % Byte.SIZE != 0) /* Round up if there's a remainder */
+            heading.treeShapeSize++;
+
+        /* Initialize tree leaves size in bytes */
+        heading.treeLeavesSize = heading.treeLeaves.size() - 1;
+    }
+
+    /**
+     * Flattens tree structure
+     */
+    private static LinkedList<Boolean> flattenShape(EncodingTreeNode tree, LinkedList<Boolean> shape) {
+        if (tree.hasValue) { /* Tree leaf */
+            shape.add(false);
+            return shape;
         }
+        /* Otherwise, it's a parent node */
+        shape.add(true);
+        shape = flattenShape(tree.left, shape);
+        shape = flattenShape(tree.right, shape);
+        return shape;
+    }
 
-        /* Pass key table size, unique bytes to initialize heading association table */
-        heading.table = ArchiveHeading.createTable(uniqueBytes);
-        heading.tableSize = heading.table.size();
-        return bits;
+    /**
+     * Flattens tree leaves
+     */
+    private static LinkedList<Byte> flattenLeaves(EncodingTreeNode tree, LinkedList<Byte> leaves) {
+        if (tree.hasValue) {
+            leaves.add((byte) tree.uniqueByte);
+            return leaves;
+        }
+        /* Otherwise, it's a parent node */
+        leaves = flattenLeaves(tree.left, leaves);
+        leaves = flattenLeaves(tree.right, leaves);
+        return leaves;
     }
 
     /**
      * Writes heading to archive file
      */
     private static void writeHeading() throws IOException {
-        /* Write tableSize bytes one by one */
-        for (int i = 0; i < (BITS_IN_BYTE * 4); i += BITS_IN_BYTE) { /* 4 bytes in integer */
-            output.write((byte) (heading.tableSize >> i));
+        /* One empty byte, will be overwritten in the end of the program */
+        output.write(0);
+
+        /* Other fields */
+        output.write(heading.signature);
+        output.write(heading.treeShapeSize);
+        output.write(heading.treeLeavesSize);
+
+        /* Writing tree shape bytes */
+        for (int i = 0; i < heading.treeShapeSize; i++) {
+            int currentByte = 0;
+            /* Generating each byte from 8 bits */
+            for (int j = 0; j < Byte.SIZE; j++) {
+                Boolean currentBit = heading.treeShape.poll();
+                if (currentBit == null)
+                    currentBit = false;
+                if (currentBit)
+                    currentByte |= (1 << (Byte.SIZE - 1 - j));
+            }
+            /* Write current byte */
+            output.write(currentByte);
         }
 
-        /* Write decompressedDataSize bytes one by one */
-        for (int i = 0; i < (BITS_IN_BYTE * 8); i += BITS_IN_BYTE) { /* 8 bytes in long */
-            output.write((byte) (heading.decompressedDataSize >> i));
-        }
-
-        for (byte key : heading.table.keySet()) {
-            output.write(key);
-            output.write(heading.table.get(key));
-        }
+        /* Writing tree leaves bytes */
+        while (!heading.treeLeaves.isEmpty())
+            output.write(heading.treeLeaves.poll());
     }
 
     /**
-     * Reads blocks one by one, compresses bytes in there, writes them to output stream
+     * Given a huffman encoding tree, builds a map of all leaves and their values.
+     * An array of ByteSequences (size = 256) represents the map. The index of each element
+     * is a unique byte value. The value of each element is its encoded sequence of bits
+     *
+     * currentSeq - current sequence, which we are forming for the next leaf
+     * size       - current sequence size
      */
-    private static void compressFileInBlocks(int seqSize) throws IOException {
-        do {
-            int bytesRead = input.read(buffer, 0, BLOCK_SIZE); /* Reading next block into buffer */
+    private static Sequence[] buildMap(EncodingTreeNode tree, Sequence[] map, int currentSeq, int size) {
+        if (tree.hasValue) { /* We reached a tree leaf */
+            map[tree.uniqueByte] = (new Sequence(currentSeq, size));
+            return map;
+        }
+        /* Otherwise, we have a parent node */
+        currentSeq <<= 1; /* Shifting current path sequence one cell left */
+        size++;           /* Incrementing size of sequence */
 
-            /* Compress block and write it to file */
-            compressWriteBlock(bytesRead, BITS_IN_BYTE - seqSize);
+        /* First, moving left */
+        map = buildMap(tree.left, map, currentSeq, size);
 
-        } while (input.available() != 0);
+        /* Then, moving right */
+        currentSeq |= 1;  /* Right => sequence has "1" added */
+        map = buildMap(tree.right, map, currentSeq, size);
+
+        return map;
     }
 
     /**
-     * Given a buffer of bytes with a specified size, compresses info there according to the
+     * Given a buffer of bytes with a specified block size, compresses info there according to the
      * association table and the seqSize and writes it into the output stream
      *
-     * offset - offset on the beginning of each unique shortcut combination in bits (= BITS_IN_BYTE - seqSize)
+     * @param map - Huffman encoding tree map
+     * @return - Number of additional bits added to the archive
      */
-    private static void compressWriteBlock(int size, int offset) throws IOException {
-        byte current;                                           /* Current byte to be written */
-        byte currentReplaceVal = heading.table.get(buffer[0]);  /* Replace bit combination of current byte in buffer */
-        byte replaceValIndex   = 0;                             /* Index of current bit in replace value */
-        int  bufferIndex       = 0;                             /* Index of current byte in buffer */
+    private static int compressInBlocks(Sequence[] map) throws IOException {
+        int current;                                        /* Current byte to be written */
+        int replaceValIndex = 0;                            /* Index of current bit in replace value */
+        int bufferIndex     = 0;                            /* Index of current byte in buffer */
+        int size = updateBuffer();                          /* Update buffer and get the size of bytes read from file */
+        Sequence currentReplaceVal = map[buffer[0] & 0xff]; /* Replace bit combination of current byte in buffer */
+
+        int i = 0; /* Iteration variable */
 
         /*
          * Each iteration:
          * 1. Form byte
          * 2. Write byte to output stream
          */
-        while (bufferIndex != size) {
+        while (size != -1) {
             current = 0;
 
-            for (int i = 0; i < BITS_IN_BYTE; i++) {
+            /* Forming a byte */
+            for (i = 0; i < Byte.SIZE; i++) {
+
                 /* Adding one bit a time */
-                int currentBit = (0b10000000 >>> (offset + replaceValIndex)) & currentReplaceVal;
+                int mask = 1 << (currentReplaceVal.size - 1 - replaceValIndex);
+                int currentBit = currentReplaceVal.value & mask;
 
                 /* Adding bit to the byte, which is being archived currently */
-                current |= ((currentBit << (offset + replaceValIndex)) >>> i);
+                current |= ((currentBit >> (currentReplaceVal.size - 1 - replaceValIndex)) << (Byte.SIZE - 1 - i));
 
                 /* Moving to next byte in the buffer of initial bytes */
-                if ((offset + replaceValIndex) == BITS_IN_BYTE - 1) {
+                if (currentReplaceVal.size - 1 - replaceValIndex == 0) {
                     bufferIndex++;
                     replaceValIndex = 0;
 
-                    /* Test if possible to continue */
-                    if (bufferIndex == size)
-                        break;
+                    /* Update buffer if it ended */
+                    if (bufferIndex == size) {
+                        size = updateBuffer();
+                        if (size == -1) /* If end of file */
+                            break;
+                        bufferIndex = 0;
+                    }
 
-                    currentReplaceVal = heading.table.get(buffer[bufferIndex]);
+                    currentReplaceVal = map[buffer[bufferIndex] & 0xff];
                 }
                 /* Otherwise, moving to the next bit in current value associated bit consequence */
                 else
@@ -169,6 +248,19 @@ public class Archiver implements Constants {
             }
 
             output.write(current);
+        }
+        return (Byte.SIZE - (i + 1)); /* Number of additional zeros in the end of file */
+    }
+
+    /**
+     * Rewrites the first byte in the archive file with ignoreBits
+     */
+    private static void overwriteIgnoreBits(String fileOut) {
+        try (RandomAccessFile file = new RandomAccessFile(fileOut, "rw")) {
+            file.seek(0);
+            file.writeByte(heading.ignoreBits);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -194,150 +286,148 @@ public class Archiver implements Constants {
 
         /* Otherwise return failure if exception occurs */
         try {
-            /* Read first heading field */
-            int tableSize = readFourBytes();
+            /* Read first two heading field */
+            int ignoreBits = input.read();
+            int signature  = input.read();
 
-            /* Check table validity to not get into endless loop later on */
-            if (tableSize > 256) {
+            /* Check signature */
+            if (signature != ARCH_SIGNATURE) {
                 System.out.println("Error: invalid archive");
                 return FAILURE;
             }
 
-            /* Read last two heading fields */
-            long decompressedDataSize = readEightBytes();
-            HashMap<Byte, Byte> table = getTable(tableSize);
+            /* Read last four heading fields */
+            int treeShapeSize  = input.read();
+            int treeLeavesSize = input.read() + 1;
+            EncodingTreeNode tree = getTree(treeShapeSize, treeLeavesSize);
 
             /* Decompress file */
-            int seqSize = findNumberOfBits(tableSize);
-            decompressFileInBlocks(seqSize, decompressedDataSize, table);
-
-            /* Post-check output file size */
-            post(fileOut);
-            if (Main.fileOutSize != decompressedDataSize) {
-                System.out.println("Decompressed file is " + Main.fileOutSize + " bytes, should be " +
-                                    decompressedDataSize + " bytes.");
-                return FAILURE;
-            }
+            decompressInBlocks(tree, ignoreBits);
 
         } catch (Exception e) {
             e.printStackTrace();
             return FAILURE;
+        } finally {
+            post(fileOut);
         }
         return 0;
     }
 
     /**
-     * Repeatedly reads four bytes from input stream and returns them as int
+     * Given the encoding tree shape and leaves size, read it from the file,
+     * unflattens and returns the result
      */
-    private static int readFourBytes() throws IOException {
-        int result = 0;
-        for (int i = 0; i < (BITS_IN_BYTE * 4); i += BITS_IN_BYTE) { /* 4 bytes in integer */
-            result |= (input.read() << i);
-        }
-        return result;
-    }
+    private static EncodingTreeNode getTree(int shapeSize, int leavesSize) throws IOException {
+        LinkedList<Boolean> shape  = new LinkedList<>();  /* Tree shape */
+        LinkedList<Byte>    leaves = new LinkedList<>();  /* Tree leaves */
 
-    /**
-     * Repeatedly reads eight bytes from input stream and returns them as long
-     */
-    private static long readEightBytes() throws IOException {
-        long result = 0;
-        for (int i = 0; i < (BITS_IN_BYTE * 8); i += BITS_IN_BYTE) { /* 8 bytes in long */
-            result |= ((long) input.read() << i);
-        }
-        return result;
-    }
+        /* Read tree shape */
+        for (int i = 0; i < shapeSize; i++) {
+            int currentByte = input.read();
 
-    /**
-     * Given the association table size, read it from the file,
-     * generate a HashMap and return it
-     */
-    private static HashMap<Byte, Byte> getTable(int size) throws IOException {
-        HashMap<Byte, Byte> result = new HashMap<>();
-
-        /* Read (size) bytes from file and put them to HashMap */
-        for (int i = 0; i < size; i++) {
-            byte value = (byte) input.read();
-            byte key   = (byte) input.read();
-            result.put(key, value);
+            /* Generating 8 bits and put them to shape array */
+            for (int j = 0; j < Byte.SIZE; j++) {
+                int currentBit = (currentByte >> (Byte.SIZE - j - 1)) & 1;
+                if (currentBit == 1)
+                    shape.add(true);
+                else
+                    shape.add(false);
+            }
         }
 
-        return result;
+        /* Read tree leaves */
+        for (int i = 0; i < leavesSize; i++)
+            leaves.add((byte) input.read());
+
+        return unflattenTree(shape, leaves);
     }
 
     /**
-     * Reads blocks one by one, decompresses bytes in there, writes them to output stream
+     * Given tree shape and leaves, unflattens tree and returns it
      */
-    private static void decompressFileInBlocks(int seqSize, long dataSize, HashMap<Byte, Byte> table) throws IOException {
+    private static EncodingTreeNode unflattenTree(LinkedList<Boolean> treeShape, LinkedList<Byte> treeLeaves) {
+        Boolean currentBit = treeShape.getFirst();
+        if (currentBit == null)
+            return null;
+        treeShape.removeFirst();
 
-        long bytesCounter = 0;
+        /* Current bit indicates it's a leaf node */
+        if (!currentBit) {
+            EncodingTreeNode leaf = new EncodingTreeNode();
+            leaf.uniqueByte = treeLeaves.getFirst();
+            leaf.hasValue = true;
+            treeLeaves.removeFirst();
+            return leaf;
+        }
 
-        do {
-            int bytesRead = input.read(buffer, 0, BLOCK_SIZE); /* Reading next block into buffer */
-
-            /* Decompress block and write it to file */
-            bytesCounter += decompressWriteBlock(bytesRead, seqSize, dataSize - bytesCounter, table);
-
-        } while (input.available() != 0);
+        /* Otherwise we have a parent node */
+        EncodingTreeNode parent = new EncodingTreeNode();
+        parent.hasValue = false;
+        parent.left  = unflattenTree(treeShape, treeLeaves);
+        parent.right = unflattenTree(treeShape, treeLeaves);
+        return parent;
     }
 
+
     /**
-     * Given a buffer of bytes with a specified size, decompresses info there according to the
-     * association table and the seqSize and writes it into the output stream
+     * Given a buffer of bytes with a specified blocks size, decompresses info there according to the
+     * huffman encoding tree and writes it into the output stream
      *
-     * seqSize  - bit sequence size (1-8)
-     * table    - bit sequences association table
-     * size     - buffer size
-     * readable - bytes available for reading to not exceed decompressedDataSize
-     *
-     * returns number of bytes decompressed
+     * @param tree - Huffman encoding tree
+     * @param ignoreBits - Bits to ignore in the last element of buffer (to cut redundant bytes in the end of file)
      */
-    private static long decompressWriteBlock(int size, int seqSize, long readable, HashMap<Byte, Byte> table) throws IOException {
-        byte current;                          /* Current bit combination from file */
-        byte bitIndex     = 0;                 /* Index of current bit in buffer's byte (0-7) */
-        int  bufferIndex  = 0;                 /* Index of current byte in buffer */
-        long bytesRead    = 0;                 /* The number of bytes read (need this to cut redundant bytes in the end of file) */
+
+    private static void decompressInBlocks(EncodingTreeNode tree, int ignoreBits) throws IOException {
+        byte bitIndex = 0;          /* Index of current bit in buffer's byte (0-7) */
+        int  bufferIndex = 0;       /* Index of current byte in buffer */
+        int  size = updateBuffer(); /* Update buffer and get the size of bytes read from file */
 
         /*
          * Each iteration:
-         * 1. Form bit combination
-         * 2. Get initial byte from table
-         * 2. Write byte to output stream
+         * 1. Going through Huffman tree until reaching leaf
+         * 2. Get leaf's value
+         * 2. Write it to output stream
          */
+        while (size != -1) {
+            EncodingTreeNode currentNode = tree;
 
-        while (bufferIndex != size) {
-            current = 0;
+            /* Forming unique combination and fetching its value from Huffman tree */
+            while (!currentNode.hasValue) {
 
-            for (int i = 0; i < seqSize; i++) {
+                /* Fetching current bit from the buffer */
+                int currentBit = ((0b10000000 >> bitIndex) & buffer[bufferIndex]) >> (Byte.SIZE - 1 - bitIndex);
 
-                /* Adding one bit at a time */
-                int currentBit = (0b10000000 >>> bitIndex) & buffer[bufferIndex];
+                /* Check the value (either 1 or 0) */
+                if (currentBit == 0)
+                    currentNode = currentNode.left;
+                else
+                    currentNode = currentNode.right;
 
-                /* Adding bit to the bit combination, which we are forming currently */
-                current |= ((currentBit << bitIndex) >>> ((BITS_IN_BYTE - seqSize) + i));
+                /* Check if we should ignore all the next bits in this byte */
+                if (bufferIndex == size - 1 && input.available() <= 0 && bitIndex == Byte.SIZE - 1 - ignoreBits) {
+                    size = -1;
+                    break;
+                }
 
                 /* Moving to the next byte in buffer */
-                if (bitIndex == BITS_IN_BYTE - 1) {
+                if (bitIndex == Byte.SIZE - 1) {
                     bufferIndex++;
                     bitIndex = 0;
 
-                    /* Test if possible to continue */
-                    if (bufferIndex == size)
-                        break;
+                    /* Update buffer if it ended */
+                    if (bufferIndex == size) {
+                        size = updateBuffer();
+                        bufferIndex = 0;
+                    }
                 }
                 /* Otherwise, moving to the next bit in current buffer's byte */
                 else
                     bitIndex++;
             }
-            if (readable == 0) /* Don't write more bytes if exceeds the number of readable ones */
-                break;
 
-            readable--;  /* One more byte was read, so reducing the number of readable ones */
-            bytesRead++; /* One more byte was read */
-
-            output.write(table.get(current));
+            /* We've found the value of current bit combination, writing it */
+            output.write(currentNode.uniqueByte);
         }
-        return bytesRead;
     }
 
 
@@ -349,21 +439,12 @@ public class Archiver implements Constants {
 
 
     /**
-     * For a given number of possible combination, finds the number
-     * of bits, required to store all of them
+     * Refreshes buffer, returns the number of bytes read into it
+     * Returns -1 when nothing is available for reading from the file
      */
-    private static int findNumberOfBits(int combinations) {
-        int result;
-        double powOfTwo = Math.log(combinations) / Math.log(2);
-        if (powOfTwo % 1 == 0)          /* If integer */
-            result = (int) powOfTwo;
-        else
-            result = (int)(powOfTwo + 1); /* Rounding up, ex. 11 unique bytes (2^(3.46)) require 4 bits */
-        if (result == 0)                  /* Minimum bits number will always be 1 */
-            result = 1;
-        return result;
+    private static int updateBuffer() throws IOException {
+        return (input.read(buffer, 0, BLOCK_SIZE));
     }
-
 
     /**
      * Runs on the start of the program, initializes start time, input file size, streams etc
@@ -400,13 +481,17 @@ public class Archiver implements Constants {
     /**
      * Runs in the end of the program, closes streams, initializes end time etc
      */
-    private static void post(String fileOut) throws IOException {
+    private static void post(String fileOut) {
         /* Close streams */
-        input.close();
-        output.flush();
-        output.close();
+        try {
+            input.close();
+            output.flush();
+            output.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-        Main.time = (double) (System.currentTimeMillis() - startTime) /1000;
+        Main.time = (double) (System.currentTimeMillis() - startTime) / 1000;
         File f = new File(fileOut);
 
         Main.fileOutSize = f.length();
