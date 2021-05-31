@@ -62,7 +62,7 @@ par v1.0 compresses 30 MB per second. The extent of compression depends on file 
 
 # Architecture/technical details
 
-Currently, the program is based on module-like architecture (mostly built on static methods). The main supported compression algorithm is Huffman coding, however a couple of other more efficient algorithms will be added in the future. Each compressed file has a header of the following structure:
+Currently, the program is based on module-like architecture (mostly built on static methods). The main supported compression algorithm is Huffman coding, however a couple of other more efficient algorithms will be added in the future. Each compressed file has a heading of the following structure:
 
 | Size in bytes | Name | Field description |
 | --- | --- | --- |
