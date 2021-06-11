@@ -1,4 +1,4 @@
-par - pocket archiver. A simple data compression cli program, which supports this set of compression algorithms:
+par - pocket archiver. A simple data compression cli program, which supports a set of compression algorithms:
 
 * Huffman coding
 * Yet to be added
