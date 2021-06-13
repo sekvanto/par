@@ -48,10 +48,6 @@ If two filenames are specified, first file is compressed/decompressed into secon
 
 # FAQ
 
-## Why is the program called par?
-
-par - P2P unarchiver. It was created during SHPP P2P java computer science course (programming.org.ua), that's the reason. The course is named P2P (peer-to-peer), because there are no mentors, students review works of each other and even exams. By the way, if you are a student of this course, please don't read the source code until you write your own archiver. It's againts the rules.
-
 ## How efficient is this archiver?
 
 par v1.0 compresses 30 MB per second. The extent of compression depends on file - it's very efficient for files, which are long but have very few unique characters, but in the opposite case the efficiency will be worse.
