@@ -32,7 +32,8 @@ struct node {
 };
 
 struct list {
-  Node * head; 
+  Node * head;
+  size_t size; 
 };
 
 Node * createnode(uint8_t data);
@@ -53,20 +54,22 @@ List * makelist(){
     return NULL;
   }
   list->head = NULL;
+  list->size = 0;
   return list;
 }
 
-void display(List * list) {
+void list_display(List * list) {
   Node * current = list->head;
   if(list->head == NULL) 
     return;
   
   for(; current != NULL; current = current->next) {
-    printf("%d\n", current->data);
+    printf("%d ", current->data);
   }
+  printf("\n");
 }
 
-void add(uint8_t data, List * list){
+void list_add(uint8_t data, List * list){
   Node * current = NULL;
   if(list->head == NULL){
     list->head = createnode(data);
@@ -78,9 +81,10 @@ void add(uint8_t data, List * list){
     }
     current->next = createnode(data);
   }
+  list->size++;
 }
 
-void deletelist(uint8_t data, List * list){
+void list_delete(uint8_t data, List * list){
   Node * current = list->head;            
   Node * previous = current;           
   while(current != NULL){           
@@ -89,14 +93,19 @@ void deletelist(uint8_t data, List * list){
       if(current == list->head)
         list->head = current->next;
       free(current);
+      list->size--;
       return;
     }                               
     previous = current;             
     current = current->next;        
   }                                 
-}                                   
+}
 
-void reverse(List * list){
+size_t list_size(List * list){
+  return list->size;
+}
+
+void list_reverse(List * list){
   Node * reversed = NULL;
   Node * current = list->head;
   Node * temp = NULL;
@@ -109,7 +118,7 @@ void reverse(List * list){
   list->head = reversed;
 }
 //Reversing the entire list by changing the direction of link from forward to backward using two pointers
-void reverse_using_two_pointers(List *list){
+void list_reverse_using_two_pointers(List *list){
     Node *previous = NULL;
     while (list->head)
     {
@@ -120,7 +129,7 @@ void reverse_using_two_pointers(List *list){
     }
     list->head=previous;
 }
-void destroy(List * list){
+void destroylist(List * list){
   Node * current = list->head;
   Node * next = current;
   while(current != NULL){

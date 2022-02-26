@@ -31,11 +31,12 @@ typedef struct node Node;
 typedef struct list List;
 
 List * makelist();
-void add(uint8_t data, List * list);
-void deletelist(uint8_t data, List * list);
-void display(List * list);
-void reverse(List * list);
-void reverse_using_two_pointers(List * list);
-void destroy(List * list);
+void list_add(uint8_t data, List * list);
+void list_delete(uint8_t data, List * list);
+size_t list_size(List * list);
+void list_display(List * list);
+void list_reverse(List * list);
+void list_reverse_using_two_pointers(List * list);
+void destroylist(List * list);
 
 #endif
