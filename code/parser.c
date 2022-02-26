@@ -93,9 +93,7 @@ static char* determine_out_file(int argc, char *argv[],
  * the names of input/output file and whether archiving or
  * unarchiving will happen
  */
-void parse_user_input(int argc, char *argv[], 
-                      char** fileIn, char** fileOut,
-                      bool* isArchiving) {
+void parse_user_input(int argc, char *argv[], Data* data) {
     argc--;
 
     /* Offset == 1 if options specified */
@@ -106,26 +104,26 @@ void parse_user_input(int argc, char *argv[],
 
     /* No in/out filenames specified */
     if (argc - offset == 0) {
-        *fileIn = DEFAULT_FILEIN;
+        data->fileIn = DEFAULT_FILEIN;
         char* newArgs[argc + 1]; /* Adding fileIn to the end of args[] */
         char_array_copy(newArgs, argv + 1, argc);
-        newArgs[argc] = *fileIn;
-        *fileOut = determine_out_file(argc + 1, newArgs, offset, isArchiving);
+        newArgs[argc] = data->fileIn;
+        data->fileOut = determine_out_file(argc + 1, newArgs, offset, &data->isArchiving);
     }
 
     /* Only input filename specified */
     else if (argc - offset == 1) {
-        *fileIn = argv[offset + 1];
-        *fileOut = determine_out_file(argc, argv + 1, offset, isArchiving);
+        data->fileIn = argv[offset + 1];
+        data->fileOut = determine_out_file(argc, argv + 1, offset, &data->isArchiving);
     }
 
     /* Both filenames specified */
     else {
-        *fileIn = argv[offset + 1];
-        *fileOut = argv[offset + 2];
-        if (strequal(*fileIn, *fileOut)) {
+        data->fileIn = argv[offset + 1];
+        data->fileOut = argv[offset + 2];
+        if (strequal(data->fileIn, data->fileOut)) {
             error("Error: name can't be the same for input and output files\n");
         }
-        *isArchiving = strequal(argv[1], ARCHIVE) || (!ends_with(argv[offset + 1], ".par") && offset == 0);
+        data->isArchiving = strequal(argv[1], ARCHIVE) || (!ends_with(argv[offset + 1], ".par") && offset == 0);
     }
 }

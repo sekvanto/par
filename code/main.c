@@ -12,20 +12,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
+#include "data.h"
 #include "parser.h"
+#include "stats.h"
 
 int main(int argc, char const *argv[])
 {
-    char *fileIn, *fileOut;
-    bool isArchiving;
-    parse_user_input(argc, (char**) argv, &fileIn, &fileOut, &isArchiving);
+    Data data;
+    initData(&data);
+    parse_user_input(argc, (char**) argv, &data);
 
 #ifdef VERBOSE
-    printf("Parsed input: fileIn = %s, fileOut = %s, isArchiving = %d\n", 
-            fileIn, fileOut, isArchiving);
+    printf("Parsed input: fileIn = %s, fileOut = %s, isArchiving = %d, algorithmType = %d\n", 
+            data.fileIn, data.fileOut, data.isArchiving, data.algorithmType);
 #endif
 
+    int success;
+    if (data.isArchiving)
+        success = archive(&data);//TODO
+    else
+        success = unarchive(&data);//TODO
+    if (success != 0) {
+        printf("Unsuccessful operation.");
+        exit(success);
+    }
+    output_stats(&data);
     return 0;
 }
