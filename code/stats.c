@@ -43,5 +43,5 @@ void output_stats(Data* data) {
     
     printf("Compression ratio: %.2f%% (less percents - higher compression, 100%% - no compression)\n",
             data->efficiency);
-    printf("Operation took: %f seconds\n", data->time);
+    printf("Operation took: %.4f seconds\n", data->time);
 }

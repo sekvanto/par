@@ -1,3 +1,4 @@
 examples/
-code/a.out
-code/core
+a.out
+core
+.vscode/

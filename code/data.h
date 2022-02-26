@@ -1,6 +1,8 @@
 #ifndef DATA_H
 #define DATA_H
 
+#include <time.h>
+
 #include "common.h"
 
 typedef enum {
