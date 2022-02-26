@@ -3,8 +3,8 @@
 
 #include "common.h"
 
-void parse_user_input(int argc, char const *argv[], 
-                      char* fileIn, char* fileOut,
+void parse_user_input(int argc, char *argv[], 
+                      char** fileIn, char** fileOut,
                       bool* isArchiving);
 
 #endif

@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #define FAILURE -1
-#define VERBOSE true
+#define VERBOSE
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
