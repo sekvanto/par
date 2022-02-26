@@ -30,7 +30,7 @@ int main(int argc, char const *argv[])
     parse_user_input(argc, (char**) argv, &data);
 
 #ifdef VERBOSE
-    printf("Parsed input: fileIn = %s, fileOut = %s, isArchiving = %d, algorithmType = %d\n\n", 
+    printf("Parsed input:\n fileIn = %s,\n fileOut = %s,\n isArchiving = %d,\n algorithmType = %d\n\n", 
             data.fileIn, data.fileOut, data.isArchiving, data.algorithmType);
 #endif
 

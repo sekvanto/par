@@ -46,7 +46,7 @@ int archive(Data* data) {
     int success = operations[data->algorithmType].archiveFunction(data, fileIn, fileOut);
 
     post(data);
-    return 0;
+    return success;
 }
 
 int unarchive(Data* data) {
