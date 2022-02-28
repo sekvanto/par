@@ -12,11 +12,15 @@ cd par
 ```
 Compile
 ```
-javac -d bin/ src/com/shpp/p2p/archiver/*
+make
 ```
 Run
 ```
 ./archive [arguments]
+```
+If you want to clean the source directory, run
+```
+make clean
 ```
 
 # Example
@@ -55,14 +59,14 @@ par v1.0 compresses 30 MB per second. The extent of compression depends on file 
 # TODO
 
 ☑  Add Huffman coding support\
+☑  Modify program structure, rewrite it from Java to C\
 ▢  Add adaptive Huffman coding (efficient for images), LZW\
-▢  Modify program structure, in particular reduce the usage of static methods/fields\
 ▢  Reduce size of archive heading\
 ▢  Add support for multithreading
 
 # Architecture/technical details
 
-Currently, the program is based on module-like architecture (mostly built on static methods). The main supported compression algorithm is Huffman coding, however a couple of other more efficient algorithms will be added in the future. Each compressed file has a heading of the following structure:
+Currently, the main supported compression algorithm is Huffman coding, however a couple of other more efficient algorithms will be added in the future. Each compressed file has a heading of the following structure:
 
 | Size in bytes | Name | Field description |
 | --- | --- | --- |
