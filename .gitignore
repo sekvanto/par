@@ -1,5 +1,8 @@
 examples/
-a.out
+archive
 gmon.out
 core
 .vscode/
+*.o
+code/algorithms/huffman/*.o
+code/algorithms/adaptive_huffman/*.o
