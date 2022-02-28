@@ -38,10 +38,10 @@ void output_stats(Data* data) {
     free(text);
 
     text = format_file_size(data->fileOutSize);
-    printf("Output file size:  %s\n", text);
+    printf("Output file size:  %s\n\n", text);
     free(text);
     
-    printf("Compression ratio: %.2f%% (less percents - higher compression, 100%% - no compression)\n",
+    printf("Compression ratio: %.2f%% (less percents - higher compression, 100%% - no compression)\n\n",
             data->efficiency);
     printf("Operation took: %.4f seconds\n", data->time);
 }

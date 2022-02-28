@@ -29,11 +29,6 @@ int main(int argc, char const *argv[])
     initData(&data);
     parse_user_input(argc, (char**) argv, &data);
 
-#ifdef VERBOSE
-    printf("Parsed input:\n fileIn = %s,\n fileOut = %s,\n isArchiving = %d,\n algorithmType = %d\n\n", 
-            data.fileIn, data.fileOut, data.isArchiving, data.algorithmType);
-#endif
-
     startTime = clock();
 
     int success;

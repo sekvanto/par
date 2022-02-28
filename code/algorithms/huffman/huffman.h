@@ -11,5 +11,6 @@
 extern uint8_t buffer[BLOCK_SIZE];
 
 int huffman_archive(Data* data, FILE* in, FILE* out);
+int huffman_unarchive(Data* data, FILE* in, FILE* out);
 
 #endif

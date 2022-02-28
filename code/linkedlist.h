@@ -32,6 +32,7 @@ typedef struct list List;
 
 List * makelist();
 void list_add(uint8_t data, List * list);
+uint8_t list_poll(List * list);
 void list_delete(uint8_t data, List * list);
 size_t list_size(List * list);
 void list_display(List * list);

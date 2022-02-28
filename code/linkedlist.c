@@ -84,6 +84,19 @@ void list_add(uint8_t data, List * list){
   list->size++;
 }
 
+/*
+ * Retrieves and removes the head (first element of the list)
+ */
+uint8_t list_poll(List * list){
+  Node * result = list->head;
+  if (result != NULL) {
+    list->head = result->next;
+    list->size--;
+    return result->data;
+  }
+  return 0;
+}
+
 void list_delete(uint8_t data, List * list){
   Node * current = list->head;            
   Node * previous = current;           
