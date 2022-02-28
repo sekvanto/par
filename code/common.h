@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #define FAILURE -1
-#define DEBUG
+//#define DEBUG
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 #define BYTE_SIZE 8
