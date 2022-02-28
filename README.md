@@ -18,7 +18,7 @@ Run
 ```
 ./archive [arguments]
 ```
-If you want to clean the source directory, run
+To clean the source directory, run
 ```
 make clean
 ```
