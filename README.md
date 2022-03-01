@@ -54,7 +54,7 @@ If two filenames are specified, first file is compressed/decompressed into secon
 
 ## How efficient is this archiver?
 
-par v1.0 compresses 80 MB per second. The extent of compression depends on file - it's very efficient for files, which are long but have very few unique characters, but in the opposite case the efficiency will be worse.
+par v2.0 compresses 80 MB per second. The extent of compression depends on file - it's very efficient for files, which are long but have very few unique characters, but in the opposite case the efficiency will be worse.
 
 # TODO
 
