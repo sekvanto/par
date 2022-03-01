@@ -61,46 +61,9 @@ par v1.0 compresses 80 MB per second. The extent of compression depends on file 
 ☑  Add Huffman coding support\
 ☑  Modify program structure, rewrite it from Java to C\
 ▢  Add adaptive Huffman coding (efficient for images), LZW\
-▢  Reduce size of archive heading\
-▢  Add support for multithreading
+▢  Add support for multithreading\
+▢  Add a few lossy data compression algorithms (esp for multimedia)
 
 # Architecture/technical details
 
-Currently, the main supported compression algorithm is Huffman coding, however a couple of other more efficient algorithms will be added in the future. Each compressed file has a heading of the following structure:
-
-| Size in bytes | Name | Field description |
-| --- | --- | --- |
-| 1 | ignoreBits | The number of zeros, which were added during compression to the end of file to make the number of bits divisible by 8. These bits are ignored during decompression |
-| 1 | signature | 0x3a by default
-| 1 | treeShapeSize | The size of Huffman tree shape after flattening (in bytes)
-| 1 | treeLeavesSize | The size of tree leaves value after flattening (in bytes)
-| X | treeShape
-| Y | treeLeaves
-| Z | Archived data
-
-## Tree flattening
-
-The generated Huffman tree flattening can be shown on these two examples:
-
-```
-     *                          *
-   /   \                      /   \
-  E     *                    A     *
-       / \                        /  \
-      W   K                      *    N
-                                / \
-                               D   B
-
-  10100                       1011000
-  EWK                         ADBN
-```
-
-, where first line - tree shape, second line - tree leaves array.
-
-### Tree shape
-
-The linked list of tree shape is formed by pre-order tree traversal. If we reach a parent node, 1 is written, then the structure of its left child and the right one. If we reach a leaf, 0 is written.
-
-### Tree leaves
-
-The array of tree leaves is formed by in-order tree traversal, from left to right.
+See [Implementation details](https://github.com/sekvanto/par/wiki/Implementation-details) on project wiki.
