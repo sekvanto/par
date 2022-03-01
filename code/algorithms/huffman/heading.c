@@ -23,13 +23,13 @@ void init_huffman_heading(HuffmanHeading* heading) {
  */
 static void find_bytes_weight(FILE* fileIn, long* weights) {
     while (true) {
-        int bytesRead = fread(buffer, sizeof(uint8_t), BLOCK_SIZE, fileIn);
+        int bytesRead = fread(bufferIn, sizeof(uint8_t), BLOCK_SIZE, fileIn);
         if (bytesRead <= 0) {
             break;
         }
         /* Determine unique bytes in current block */
         for (size_t i = 0; i < bytesRead; i++) {
-            size_t index = buffer[i] & 0xff; /* Cast byte to unsigned integer */
+            size_t index = bufferIn[i] & 0xff; /* Cast byte to unsigned integer */
             weights[index]++;
         }
     }

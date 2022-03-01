@@ -20,11 +20,46 @@ static FILE* fileIn;
 static FILE* fileOut;
 static HuffmanHeading heading;
 
-uint8_t buffer[BLOCK_SIZE];
+uint8_t bufferIn[BLOCK_SIZE];
+uint8_t bufferOut[BLOCK_SIZE];
 
 static void post() {
     destroylist(heading.treeLeaves);
     destroylist(heading.treeShape);
+}
+
+/*
+ * Refreshes input buffer, returns the number of bytes read into it
+ */
+static size_t update_buffer() {
+    return fread(bufferIn, sizeof(uint8_t), BLOCK_SIZE, fileIn);
+}
+
+/*
+ * Writes bytes from output buffer to the file
+ */
+static void flush_buffer(size_t size) {
+    fwrite(bufferOut, sizeof(uint8_t), size, fileOut);
+}
+
+/*
+ * Returns the next index of the output buffer
+ */
+static size_t output_byte(uint8_t byte, size_t bufferIndex) {
+    if (bufferIndex >= BLOCK_SIZE) {
+        flush_buffer(bufferIndex);
+        bufferIndex = 0;
+    }
+    bufferOut[bufferIndex] = byte;
+    return bufferIndex + 1;
+}
+
+static bool at_end(FILE* file) {
+    off_t current = ftell(file);
+    fseek(file, 0, SEEK_END);
+    off_t end = ftell(file);
+    fseek(file, current, SEEK_SET);  /* Back to where we started */
+    return current == end;
 }
 
 /*
@@ -157,21 +192,6 @@ static void build_map(HuffmanTreeNode* tree, Sequence* map, int currentSeq, int 
 }
 
 /*
- * Refreshes buffer, returns the number of bytes read into it
- */
-static size_t update_buffer() {
-    return fread(buffer, sizeof(uint8_t), BLOCK_SIZE, fileIn);
-}
-
-static bool at_end(FILE* file) {
-    off_t current = ftell(file);
-    fseek(file, 0, SEEK_END);
-    off_t end = ftell(file);
-    fseek(file, current, SEEK_SET);  /* Back to where we started */
-    return current == end;
-}
-
-/*
  * Given a buffer of bytes with a specified block size, compresses info there according to the
  * association table and the seqSize and writes it into the output stream
  *
@@ -181,9 +201,10 @@ static bool at_end(FILE* file) {
 static uint8_t compress_in_blocks(Sequence* map) {
     uint8_t current;                                    /* Current byte to be written */
     size_t replaceValIndex = 0;                         /* Index of current bit in replace value */
-    size_t bufferIndex     = 0;                         /* Index of current byte in the buffer */
+    size_t bufferIndexIn   = 0;                         /* Index of current byte in the input buffer */
+    size_t bufferIndexOut  = 0;                         /* Index of current byte in the output buffer */
     size_t size = update_buffer();                      /* Update buffer and get the size of bytes read from file */
-    Sequence currentReplaceVal = map[buffer[0] & 0xff]; /* Replace bit combination of current byte in the buffer */
+    Sequence currentReplaceVal = map[bufferIn[0] & 0xff]; /* Replace bit combination of current byte in the buffer */
 
     int i = 0;
 
@@ -206,25 +227,25 @@ static uint8_t compress_in_blocks(Sequence* map) {
 
             /* Moving to the next byte in the buffer of initial bytes */
             if (currentReplaceVal.size - 1 - replaceValIndex == 0) {
-                bufferIndex++;
+                bufferIndexIn++;
                 replaceValIndex = 0;
 
                 /* Update buffer if it ended */
-                if (bufferIndex == size) {
+                if (bufferIndexIn == size) {
                     size = update_buffer();
                     if (size <= 0) { /* End of the file */
                         break;
                     }
-                    bufferIndex = 0;
+                    bufferIndexIn = 0;
                 }
-                currentReplaceVal = map[buffer[bufferIndex] & 0xff];
+                currentReplaceVal = map[bufferIn[bufferIndexIn] & 0xff];
             }
             /* Otherwise, moving to the next bit in current value associated bit sequence */
             else {
                 replaceValIndex++;
             }
         }
-        fwrite(&current, sizeof(uint8_t), 1, fileOut);
+        bufferIndexOut = output_byte(current, bufferIndexOut);
     }
     return (BYTE_SIZE - (i + 1)); /* Number of additional zeros in the end of the file */
 }
@@ -353,7 +374,8 @@ static HuffmanTreeNode* get_tree(uint16_t shapeSize, uint16_t leavesSize) {
  */
 static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
     uint8_t bitIndex = 0;           /* Index of current bit in buffer's byte (0-7) */
-    size_t  bufferIndex = 0;        /* Index of current byte in the buffer */
+    size_t  bufferIndexIn = 0;      /* Index of current byte in the input buffer */
+    size_t  bufferIndexOut = 0;     /* Index of current byte in the output buffer */
     size_t  size = update_buffer(); /* Update buffer and get the size of bytes read from file */
 
     /*
@@ -368,7 +390,7 @@ static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
         /* Forming a unique combination and fetching its value from the tree */
         while (!currentNode->hasValue) {
             /* Fetching current bit from the buffer */
-            uint32_t bit = ((0b10000000 >> bitIndex) & buffer[bufferIndex]) >> (BYTE_SIZE - 1 - bitIndex);
+            uint32_t bit = ((0b10000000 >> bitIndex) & bufferIn[bufferIndexIn]) >> (BYTE_SIZE - 1 - bitIndex);
 
             /* Check the value (either 1 or 0) */
             if (bit == 0) {
@@ -378,20 +400,20 @@ static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
             }
 
             /* Check if we should ignore all the next bits in this byte */
-            if (bufferIndex == size - 1 && at_end(fileIn) && bitIndex == BYTE_SIZE - 1 - ignoreBits) {
+            if (bufferIndexIn == size - 1 && at_end(fileIn) && bitIndex == BYTE_SIZE - 1 - ignoreBits) {
                 size = 0;
                 break;
             }
 
             /* Moving to the next byte in buffer */
             if (bitIndex == BYTE_SIZE - 1) {
-                bufferIndex++;
+                bufferIndexIn++;
                 bitIndex = 0;
 
                 /* Update buffer if it ended */
-                if (bufferIndex >= size) {
+                if (bufferIndexIn >= size) {
                     size = update_buffer();
-                    bufferIndex = 0;
+                    bufferIndexIn = 0;
                 }
             }
             /* Otherwise, moving to the next bit in current buffer's byte */
@@ -399,12 +421,11 @@ static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
                 bitIndex++;
             }
         }
-#ifdef DEBUG
-        //printf("Current node has value? %d, byte = %d\n", currentNode->hasValue, currentNode->uniqueByte);
-#endif
-        /* We've found the value of current bit combination, writing it */
-        fwrite(&currentNode->uniqueByte, sizeof(uint8_t), 1, fileOut);
+        /* We've found the value of current bit combination, writing it to the buffer */
+        bufferIndexOut = output_byte(currentNode->uniqueByte, bufferIndexOut);
     }
+    /* Flush the rest of the output buffer */
+    flush_buffer(bufferIndexOut);
 }
 
 int huffman_unarchive(Data* data, FILE* in, FILE* out) {
