@@ -43,12 +43,18 @@ Optional flags:
 
 `-u` Explicit flag to unarchive
 
+`--algorithm`=`algorithm-name`
 
 If zero filenames are specified, program archives the default file ("test.txt").
 
 If only one filename is specified, the output file name is generated automatically, e.g. Input = "file.txt" => Output = "file.txt.par". If input name has ".par" extension, file will be decompressed and gain extension ".uar", e.g. Input = "file.txt.par" => Output = "file.txt.uar".
 
 If two filenames are specified, first file is compressed/decompressed into second file. Function will depend either on flags, or on input filename.
+
+### algorithm-name
+
+* huffman (\*)
+* adaptive-huffman
 
 # TODO
 
