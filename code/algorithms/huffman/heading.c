@@ -4,7 +4,7 @@
 
 #include "heading.h"
 #include "huffman.h"
-#include "../../priority_queue.h"
+#include "../../utils/priority_queue.h"
 
 void init_huffman_heading(HuffmanHeading* heading) {
     heading->ignoreBits = 0;

@@ -4,5 +4,6 @@ gmon.out
 core
 .vscode/
 *.o
+code/utils/*.o
 code/algorithms/huffman/*.o
 code/algorithms/adaptive_huffman/*.o

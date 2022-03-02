@@ -50,12 +50,6 @@ If only one filename is specified, the output file name is generated automatical
 
 If two filenames are specified, first file is compressed/decompressed into second file. Function will depend either on flags, or on input filename.
 
-# FAQ
-
-## How efficient is this archiver?
-
-par v2.0 compresses 80 MB per second. The extent of compression depends on file - it's very efficient for files, which are long but have very few unique characters, but in the opposite case the efficiency will be worse.
-
 # TODO
 
 ☑  Add Huffman coding support\

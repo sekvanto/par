@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "../../common.h"
-#include "../../linkedlist.h"
+#include "../../utils/linkedlist.h"
 
 typedef struct {
     uint8_t ignoreBits;     /* 1 byte  - the number of additional bits to ignore in the end of arch. data */

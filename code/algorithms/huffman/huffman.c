@@ -3,7 +3,7 @@
 #include "huffman.h"
 #include "heading.h"
 #include "../../archiver.h"
-#include "../../linkedlist.h"
+#include "../../utils/linkedlist.h"
 
 /**
  * This structure represents a byte sequence.
@@ -247,6 +247,7 @@ static uint8_t compress_in_blocks(Sequence* map) {
         }
         bufferIndexOut = output_byte(current, bufferIndexOut);
     }
+    flush_buffer(bufferIndexOut);
     return (BYTE_SIZE - (i + 1)); /* Number of additional zeros in the end of the file */
 }
 
