@@ -1,6 +1,9 @@
 #ifndef DATA_H
 #define DATA_H
 
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "common.h"
@@ -9,6 +12,17 @@ typedef enum {
     ALG_HUFFMAN,
     ALG_ADAPTIVE_HUFFMAN
 } AlgorithmType;
+
+const static struct {
+    AlgorithmType val;
+    const char    *str;
+} conversion [] = {
+    {ALG_HUFFMAN,          "huffman"},
+    {ALG_ADAPTIVE_HUFFMAN, "adaptive-huffman"},
+};
+
+void dataError(const char* message);
+AlgorithmType str_to_algorithm_type (const char *str);
 
 typedef struct {
     char* fileIn;

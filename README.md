@@ -39,6 +39,8 @@ make clean
 
 Optional flags:
 
+`-h`, `--help` Show help
+
 `-a` Explicit flag to forcefully archive first file into second file
 
 `-u` Explicit flag to unarchive

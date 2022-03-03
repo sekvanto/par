@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #include "archiver.h"
@@ -14,14 +15,21 @@ typedef struct {
 FILE* fileIn;
 FILE* fileOut;
 
-int archiveError(const char* message) {
-    printf("Archive error: %s\n", message);
+int archiveError(const char* message, ...) {
+    va_list args;
+    va_start (args, message);
+
+    printf("Archive error: ");
+    vprintf (message, args);
+    printf(".\n");
+
+    va_end (args);
 }
 
 static long file_size(char filename[]) {
     FILE* fp = fopen(filename, "r");
     if (fp == NULL) {
-        archiveError("can't open file(-s).");
+        archiveError("can't open file: %s", filename);
         return FAILURE;
     }
     fseek(fp, 0L, SEEK_END);
@@ -33,11 +41,18 @@ static long file_size(char filename[]) {
 
 static int init(Data* data) {
     data->fileInSize = file_size(data->fileIn);
-    fileIn = fopen(data->fileIn, "rb");
-    fileOut = fopen(data->fileOut, "wb");
-    if (fileIn == NULL || fileOut == NULL) {
-        archiveError("can't open file(-s).");
+    if (data->fileInSize == FAILURE) {
         return FAILURE;
+    }
+
+    fileIn = fopen(data->fileIn, "rb");
+    if (fileIn == NULL) {
+        archiveError("can't open file: %s", data->fileIn);
+        return FAILURE;
+    }
+    fileOut = fopen(data->fileOut, "wb");
+    if (fileOut == NULL) {
+        archiveError("can't open file: %s", data->fileOut);
     }
     return 0;
 }

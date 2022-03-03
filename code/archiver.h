@@ -6,6 +6,6 @@
 
 int archive(Data* data);
 int unarchive(Data* data);
-int archiveError(const char* message);
+int archiveError(const char* message, ...);
 
 #endif

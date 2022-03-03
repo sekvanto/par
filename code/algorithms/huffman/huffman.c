@@ -265,7 +265,7 @@ int huffman_archive(Data* data, FILE* in, FILE* out) {
     init_huffman_heading(&heading);
 
     if (!is_file_correct(fileIn)) {
-        archiveError("Incorrect file: contains less than 2 unique bytes");
+        archiveError("incorrect file: contains less than 2 unique bytes");
         return FAILURE;
     }
     fseek(fileIn, 0, SEEK_SET);

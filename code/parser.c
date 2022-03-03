@@ -3,14 +3,18 @@
 #include <stdlib.h>
 
 #include "parser.h"
+#include "utils/argparse.h"
 
 #define DEFAULT_FILEIN "test.txt"
 
-#define ARCHIVE "-a"
-#define UNARCHIVE "-u"
+static const char *const usages[] = {
+    "./archive [options] [[--] args]",
+    "./archive [options]",
+    NULL,
+};
 
 static void error(const char* message) {
-    printf("%s", message);
+    printf("Error: %s.\n", message);
     exit(FAILURE);
 }
 
@@ -22,10 +26,6 @@ static bool ends_with(const char *str, const char *suffix) {
     if (lensuffix >  lenstr)
         return false;
     return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
-}
-
-static bool strequal(const char *s1, const char *s2) {
-    return strcmp(s1, s2) == 0;
 }
 
 /*
@@ -41,7 +41,7 @@ static char* add_suffix(const char *str, const char *suffix) {
     
     subtext[strLen + suffixLen] = '\0';
     return subtext;
-} 
+}
 
 /* 
  * Replaces filename extension, e.g. "file.txt" -> "file.par" 
@@ -59,71 +59,84 @@ static char* replace_suffix(const char *str, const char *suffix) {
     return subtext;
 }
 
-static void char_array_copy(char **dst, char **src, int count) {
-    for(; count > 0; count--) {
-        *dst++ = *src++;
-    }
-}
-
 /*
- * Takes arguments where only input filename is specified.
- * Offset == 1 if options specified
- * Determines output filename and returns it
+ * Determines output filename and returns it,
+ * based on the input file name and whether it's being archived or unarchived
  */
-static char* determine_out_file(int argc, char *argv[],
-                                int offset, bool* isArchiving) {
-    /* Archiving in these cases */
-    if (strequal(argv[0], ARCHIVE) || (!ends_with(argv[0], ".par") && offset == 0)) {
-        *isArchiving = true;
-        return add_suffix(argv[offset], ".par");
+static char* determine_out_file(Data* data) {
+    if (data->isArchiving == true) {
+        return add_suffix(data->fileIn, ".par");
     }
-
-    /* Unarchiving otherwise */
-    *isArchiving = false;
-
-    if (ends_with(argv[offset], ".par")) {
-        return replace_suffix(argv[offset], ".uar");
-    } else {
-        return add_suffix(argv[offset], ".uar");
+    if (ends_with(data->fileIn, ".par")) {
+        return replace_suffix(data->fileIn, ".uar");
     }
+    return add_suffix(data->fileIn, ".uar");
 }
-
 /*
- * Takes arguments in argv[], based on which determines
- * the names of input/output file and whether archiving or
- * unarchiving will happen
+ * Determines whether the input file is to be archived or unarchived,
+ * based on the input file name,
+ * when neither "-u" nor "-a" were specified
  */
-void parse_user_input(int argc, char *argv[], Data* data) {
-    argc--;
-
-    /* Offset == 1 if options specified */
-    int offset = 0;
-    if (argc > 0 && (strequal(argv[1], ARCHIVE) || strequal(argv[1], UNARCHIVE))) {
-        offset = 1;
-    }
-
-    /* No in/out filenames specified */
-    if (argc - offset == 0) {
-        data->fileIn = DEFAULT_FILEIN;
-        char* newArgs[argc + 1]; /* Adding fileIn to the end of args[] */
-        char_array_copy(newArgs, argv + 1, argc);
-        newArgs[argc] = data->fileIn;
-        data->fileOut = determine_out_file(argc + 1, newArgs, offset, &data->isArchiving);
-    }
-
-    /* Only input filename specified */
-    else if (argc - offset == 1) {
-        data->fileIn = argv[offset + 1];
-        data->fileOut = determine_out_file(argc, argv + 1, offset, &data->isArchiving);
-    }
-
-    /* Both filenames specified */
-    else {
-        data->fileIn = argv[offset + 1];
-        data->fileOut = argv[offset + 2];
-        if (strequal(data->fileIn, data->fileOut)) {
-            error("Error: name can't be the same for input and output files\n");
+static bool determine_is_archiving(int argc, char *argv[]) {
+    if (argc == 0) {
+        return true;
+    } else if (argc == 1) {
+        if (ends_with(argv[0], ".par")) {
+            return false; /* Unarchiving */
         }
-        data->isArchiving = strequal(argv[1], ARCHIVE) || (!ends_with(argv[offset + 1], ".par") && offset == 0);
+        return true;
+    }
+    if (ends_with(argv[0], ".par") && ends_with(argv[1], ".par")) {
+        return true;
+    } else if (ends_with(argv[0], ".par")) {
+        return false;
+    }
+    return true;
+}
+
+void parse_user_input(int argc, char *argv[], Data* data) {
+    bool isArchiving = 0;
+    bool isUnarchiving = 0;
+    char* algorithm = NULL;
+    struct argparse_option options[] = {
+        OPT_HELP(),
+        OPT_GROUP("Basic options"),
+        OPT_BOOLEAN('a', NULL, &isArchiving, "archive", NULL, 0, 0),
+        OPT_BOOLEAN('u', NULL, &isUnarchiving, "unarchive", NULL, 0, 0),
+        OPT_STRING(0, "algorithm", &algorithm, "algorithm type", NULL, 0, 0),
+        OPT_END(),
+    };
+    struct argparse argparse;
+    argparse_init(&argparse, options, usages, 0);
+    argparse_describe(&argparse, "\npar - pocket archiver. A simple data compression cli program, which supports a set of compression algorithms.", 
+                                 "\nAlgorithm types\n    huffman (*)\n    adaptive-huffman\n\nArgs: [[--] [input file] [output file]]\n  or: [[--] [input file]]\nEmpty args sets input file name to default.");
+    argc = argparse_parse(&argparse, argc, (const char**) argv);
+
+    /* Both -u and -a are specified */
+    if (isArchiving != 0 && isUnarchiving != 0) {
+        argparse_help_cb(&argparse, options);
+    } else if (isArchiving == 0 && isUnarchiving == 0) {
+        data->isArchiving = determine_is_archiving(argc, argv);
+    } else if (isArchiving != 0) {
+        data->isArchiving = true;
+    } else if (isUnarchiving != 0) {
+        data->isArchiving = false;
+    }
+
+    if (algorithm == NULL) {
+        data->algorithmType = ALG_HUFFMAN;
+    } else {
+        data->algorithmType = str_to_algorithm_type(algorithm);
+    }
+
+    if (argc == 0) {
+        data->fileIn = DEFAULT_FILEIN;
+        data->fileOut = determine_out_file(data);
+    } else if (argc == 1) {
+        data->fileIn = argv[0];
+        data->fileOut = determine_out_file(data);
+    } else {
+        data->fileIn = argv[0];
+        data->fileOut = argv[1];
     }
 }
