@@ -1,14 +1,38 @@
 #include "adaptive_huffman.h"
 
-typedef struct {
-    uint32_t value; /* Value of byte sequence */
-    size_t size;    /* Size of value in bits */
-} Sequence;
+static void initialize_model() {
+    //
+}
 
-int adaptive_huffman_archive(Data* data, FILE* in, FILE* out) {
+static void update_model(uint8_t c) {
+    //
+}
+
+static void encode(uint8_t c) {
+    //
+}
+
+int adaptive_huffman_archive(Data* data) {
+    int c;
+    initialize_model();
+    while ((c = getc(fileIn)) != EOF) {
+        encode(c);
+        update_model(c);
+    }
     return 0;
 }
 
-int adaptive_huffman_unarchive(Data* data, FILE* in, FILE* out) {
+static int8_t decode() {
+    static Sequence byte;
+    return 0;
+}
+
+int adaptive_huffman_unarchive(Data* data) {
+    int c;
+    initialize_model();
+    while((c = decode()) != EOF) {
+        output_byte(c);
+        update_model(c);
+    }
     return 0;
 }

@@ -5,6 +5,8 @@
 
 uint8_t bufferIn[BLOCK_SIZE];
 uint8_t bufferOut[BLOCK_SIZE];
+size_t  bufferIndexIn = 0;
+size_t  bufferIndexOut = 0;
 
 FILE* fileIn;
 FILE* fileOut;
@@ -17,30 +19,21 @@ bool at_end(FILE* file) {
     return current == end;
 }
 
-/*
- * Refreshes input buffer, returns the number of bytes read into it
- */
 size_t update_buffer() {
     return fread(bufferIn, sizeof(uint8_t), BLOCK_SIZE, fileIn);
 }
 
-/*
- * Writes bytes from output buffer to the file
- */
-void flush_buffer(size_t size) {
-    fwrite(bufferOut, sizeof(uint8_t), size, fileOut);
+void flush_buffer() {
+    fwrite(bufferOut, sizeof(uint8_t), bufferIndexOut, fileOut);
+    bufferIndexOut = 0;
 }
 
-/*
- * Returns the next index of the output buffer
- */
-size_t output_byte(uint8_t byte, size_t bufferIndex) {
-    if (bufferIndex >= BLOCK_SIZE) {
-        flush_buffer(bufferIndex);
-        bufferIndex = 0;
+void output_byte(uint8_t byte) {
+    if (bufferIndexOut >= BLOCK_SIZE) {
+        flush_buffer(bufferIndexOut);
     }
-    bufferOut[bufferIndex] = byte;
-    return bufferIndex + 1;
+    bufferOut[bufferIndexOut] = byte;
+    bufferIndexOut++;
 }
 
 /*

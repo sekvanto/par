@@ -6,7 +6,7 @@
 #include "algorithms/huffman/huffman.h"
 #include "algorithms/adaptive_huffman/adaptive_huffman.h"
 
-typedef int (*ArchiveFn)(Data* data, FILE* in, FILE* out);
+typedef int (*ArchiveFn)(Data* data);
 
 typedef struct {
     ArchiveFn archiveFunction;
@@ -76,7 +76,7 @@ int archive(Data* data) {
     printf("Compressing the file: %s\n\n", data->fileIn);
     printf("Saving to file: %s\n\n", data->fileOut);
 
-    int success = operations[data->algorithmType].archiveFunction(data, fileIn, fileOut);
+    int success = operations[data->algorithmType].archiveFunction(data);
     
     post(data);
     return success;
@@ -90,7 +90,7 @@ int unarchive(Data* data) {
     printf("Decompressing the file: %s\n\n", data->fileIn);
     printf("Saving to file: %s\n\n", data->fileOut);
 
-    int success = operations[data->algorithmType].unarchiveFunction(data, fileIn, fileOut);
+    int success = operations[data->algorithmType].unarchiveFunction(data);
 
     post(data);
     return success;

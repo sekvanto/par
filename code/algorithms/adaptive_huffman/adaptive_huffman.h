@@ -6,7 +6,7 @@
 #include "../../common.h"
 #include "../../data.h"
 
-int adaptive_huffman_archive(Data* data, FILE* in, FILE* out);
-int adaptive_huffman_unarchive(Data* data, FILE* in, FILE* out);
+int adaptive_huffman_archive(Data* data);
+int adaptive_huffman_unarchive(Data* data);
 
 #endif

@@ -5,17 +5,6 @@
 #include "../../archiver.h"
 #include "../../utils/linkedlist.h"
 
-/**
- * This structure represents a byte sequence.
- * It's basically the same as **int** but with an additional size field
- * (for knowing which bits of the value field are included into the sequence)
- * (e.g. val = "0b00000000000000001", size = "3" => sequence = "001")
- */
-typedef struct {
-    uint32_t value; /* Value of byte sequence */
-    size_t size;    /* Size of value in bits */
-} Sequence;
-
 static HuffmanHeading heading;
 
 static void post() {
@@ -143,13 +132,9 @@ static void build_map(HuffmanTreeNode* tree, Sequence* map, int currentSeq, int 
 static uint8_t compress_in_blocks(Sequence* map) {
     uint8_t current;                                    /* Current byte to be written */
     size_t replaceValIndex = 0;                         /* Index of current bit in replace value */
-    size_t bufferIndexIn   = 0;                         /* Index of current byte in the input buffer */
-    size_t bufferIndexOut  = 0;                         /* Index of current byte in the output buffer */
     size_t size = update_buffer();                      /* Update buffer and get the size of bytes read from file */
     Sequence currentReplaceVal = map[bufferIn[0] & 0xff]; /* Replace bit combination of current byte in the buffer */
-
     int i = 0;
-
     /*
      * Each iteration:
      * 1. Form byte
@@ -187,9 +172,9 @@ static uint8_t compress_in_blocks(Sequence* map) {
                 replaceValIndex++;
             }
         }
-        bufferIndexOut = output_byte(current, bufferIndexOut);
+        output_byte(current);
     }
-    flush_buffer(bufferIndexOut);
+    flush_buffer();
     return (BYTE_SIZE - (i + 1)); /* Number of additional zeros in the end of the file */
 }
 
@@ -201,9 +186,7 @@ static void overwrite_ignore_bits(FILE* file) {
     fwrite(&heading.ignoreBits, sizeof(uint8_t), 1, file);
 }
 
-int huffman_archive(Data* data, FILE* in, FILE* out) {
-    fileIn = in;
-    fileOut = out;
+int huffman_archive(Data* data) {
     init_huffman_heading(&heading);
 
     if (!is_file_correct(fileIn)) {
@@ -317,10 +300,7 @@ static HuffmanTreeNode* get_tree(uint16_t shapeSize, uint16_t leavesSize) {
  */
 static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
     uint8_t bitIndex = 0;           /* Index of current bit in buffer's byte (0-7) */
-    size_t  bufferIndexIn = 0;      /* Index of current byte in the input buffer */
-    size_t  bufferIndexOut = 0;     /* Index of current byte in the output buffer */
     size_t  size = update_buffer(); /* Update buffer and get the size of bytes read from file */
-
     /*
      * Each iteration:
      * 1. Going through Huffman tree until reaching a leaf
@@ -365,16 +345,13 @@ static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
             }
         }
         /* We've found the value of current bit combination, writing it to the buffer */
-        bufferIndexOut = output_byte(currentNode->uniqueByte, bufferIndexOut);
+        output_byte(currentNode->uniqueByte);
     }
     /* Flush the rest of the output buffer */
-    flush_buffer(bufferIndexOut);
+    flush_buffer();
 }
 
-int huffman_unarchive(Data* data, FILE* in, FILE* out) {
-    fileIn = in;
-    fileOut = out;
-
+int huffman_unarchive(Data* data) {
     /* Read first two heading fields */
     uint8_t ignoreBits, signature;
     fread(&ignoreBits, sizeof(uint8_t), 1, fileIn);
