@@ -62,7 +62,7 @@ If two filenames are specified, first file is compressed/decompressed into secon
 
 ☑  Add Huffman coding support\
 ☑  Modify program structure, rewrite it from Java to C\
-▢  Add adaptive Huffman coding (efficient for images), LZW\
+▢  Add a few other lossless algorithms\
 ▢  Add support for multithreading\
 ▢  Add a few lossy data compression algorithms (esp for multimedia)
 

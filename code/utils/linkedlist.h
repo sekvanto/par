@@ -24,8 +24,6 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 
-#include "../common.h"
-
 typedef struct node Node;
 
 typedef struct list List;

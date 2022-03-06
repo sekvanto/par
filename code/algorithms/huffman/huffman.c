@@ -16,69 +16,11 @@ typedef struct {
     size_t size;    /* Size of value in bits */
 } Sequence;
 
-static FILE* fileIn;
-static FILE* fileOut;
 static HuffmanHeading heading;
-
-uint8_t bufferIn[BLOCK_SIZE];
-uint8_t bufferOut[BLOCK_SIZE];
 
 static void post() {
     destroylist(heading.treeLeaves);
     destroylist(heading.treeShape);
-}
-
-/*
- * Refreshes input buffer, returns the number of bytes read into it
- */
-static size_t update_buffer() {
-    return fread(bufferIn, sizeof(uint8_t), BLOCK_SIZE, fileIn);
-}
-
-/*
- * Writes bytes from output buffer to the file
- */
-static void flush_buffer(size_t size) {
-    fwrite(bufferOut, sizeof(uint8_t), size, fileOut);
-}
-
-/*
- * Returns the next index of the output buffer
- */
-static size_t output_byte(uint8_t byte, size_t bufferIndex) {
-    if (bufferIndex >= BLOCK_SIZE) {
-        flush_buffer(bufferIndex);
-        bufferIndex = 0;
-    }
-    bufferOut[bufferIndex] = byte;
-    return bufferIndex + 1;
-}
-
-static bool at_end(FILE* file) {
-    off_t current = ftell(file);
-    fseek(file, 0, SEEK_END);
-    off_t end = ftell(file);
-    fseek(file, current, SEEK_SET);  /* Back to where we started */
-    return current == end;
-}
-
-/*
- * Determines the number of unique bytes in file
- * Returns true if the file has 2+ unique bytes
- */
-static bool is_file_correct(FILE* file) {
-    uint8_t firstByte;
-    fread(&firstByte, sizeof(uint8_t), 1, fileIn);
-    uint8_t secondByte = firstByte;
-    while (fread(&secondByte, sizeof(uint8_t), 1, fileIn) != 0) {
-        if (firstByte != secondByte) {
-#ifdef DEBUG
-            printf("First two bytes: %c, %c\n\n", firstByte, secondByte);
-#endif
-            return true;
-        }
-    }
-    return false;
 }
 
 /*

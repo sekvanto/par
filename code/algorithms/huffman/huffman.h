@@ -6,11 +6,6 @@
 #include "../../common.h"
 #include "../../data.h"
 
-#define BLOCK_SIZE 65536
-
-extern uint8_t bufferIn[BLOCK_SIZE];
-extern uint8_t bufferOut[BLOCK_SIZE];
-
 int huffman_archive(Data* data, FILE* in, FILE* out);
 int huffman_unarchive(Data* data, FILE* in, FILE* out);
 

@@ -4,6 +4,7 @@
 
 #include "archiver.h"
 #include "algorithms/huffman/huffman.h"
+#include "algorithms/adaptive_huffman/adaptive_huffman.h"
 
 typedef int (*ArchiveFn)(Data* data, FILE* in, FILE* out);
 
@@ -11,9 +12,6 @@ typedef struct {
     ArchiveFn archiveFunction;
     ArchiveFn unarchiveFunction;
 } Operations;
-
-FILE* fileIn;
-FILE* fileOut;
 
 int archiveError(const char* message, ...) {
     va_list args;
@@ -53,6 +51,7 @@ static int init(Data* data) {
     fileOut = fopen(data->fileOut, "wb");
     if (fileOut == NULL) {
         archiveError("can't open file: %s", data->fileOut);
+        return FAILURE;
     }
     return 0;
 }
@@ -65,8 +64,8 @@ static void post(Data* data) {
 }
 
 Operations operations[] = {
-    [ALG_HUFFMAN]          = {huffman_archive, huffman_unarchive},
-    [ALG_ADAPTIVE_HUFFMAN] = {NULL,            NULL},
+    [ALG_HUFFMAN]          = {huffman_archive,          huffman_unarchive},
+    [ALG_ADAPTIVE_HUFFMAN] = {adaptive_huffman_archive, adaptive_huffman_unarchive},
 };
 
 int archive(Data* data) {

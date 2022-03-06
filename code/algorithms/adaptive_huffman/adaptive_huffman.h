@@ -1,0 +1,12 @@
+#ifndef ADAPTIVE_HUFFMAN_H
+#define ADAPTIVE_HUFFMAN_H
+
+#include <stdio.h>
+
+#include "../../common.h"
+#include "../../data.h"
+
+int adaptive_huffman_archive(Data* data, FILE* in, FILE* out);
+int adaptive_huffman_unarchive(Data* data, FILE* in, FILE* out);
+
+#endif
