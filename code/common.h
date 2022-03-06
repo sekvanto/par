@@ -30,6 +30,9 @@ typedef struct {
     size_t size;    /* Size of value in bits */
 } Sequence;
 
+
+extern Sequence outByte; /* Incomplete output byte */
+
 extern uint8_t bufferIn[BLOCK_SIZE];
 extern uint8_t bufferOut[BLOCK_SIZE];
 extern size_t  bufferIndexOut;
@@ -40,7 +43,9 @@ extern FILE* fileOut;
 
 size_t update_buffer();
 void flush_buffer();
+int flush_incomplete_byte();
 void output_byte(uint8_t byte);
+void output_bit_sequence(Sequence seq);
 
 bool at_end(FILE* file);
 bool is_file_correct(FILE* file);

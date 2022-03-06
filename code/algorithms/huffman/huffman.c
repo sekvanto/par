@@ -129,53 +129,25 @@ static void build_map(HuffmanTreeNode* tree, Sequence* map, int currentSeq, int 
  * map - Huffman encoding tree map
  * returns - Number of additional bits added to the archive
  */
-static uint8_t compress_in_blocks(Sequence* map) {
-    uint8_t current;                                    /* Current byte to be written */
-    size_t replaceValIndex = 0;                         /* Index of current bit in replace value */
-    size_t size = update_buffer();                      /* Update buffer and get the size of bytes read from file */
-    Sequence currentReplaceVal = map[bufferIn[0] & 0xff]; /* Replace bit combination of current byte in the buffer */
-    int i = 0;
-    /*
-     * Each iteration:
-     * 1. Form byte
-     * 2. Write byte to output file
-     */
+static uint8_t compress(Sequence* map) {
+    size_t size = update_buffer();
+    Sequence seq = map[bufferIn[0] & 0xff];
+    bufferIndexIn = 0;
+
     while (size > 0) {
-        current = 0;
-
-        /* Forming a byte */
-        for (i = 0; i < BYTE_SIZE; i++) {
-            /* Adding one bit a time */
-            int mask = 1 << (currentReplaceVal.size - 1 - replaceValIndex);
-            int currentBit = currentReplaceVal.value & mask;
-
-            /* Adding bit to the byte, which is being archived currently */
-            current |= ((currentBit >> (currentReplaceVal.size - 1 - replaceValIndex)) << (BYTE_SIZE - 1 - i));
-
-            /* Moving to the next byte in the buffer of initial bytes */
-            if (currentReplaceVal.size - 1 - replaceValIndex == 0) {
-                bufferIndexIn++;
-                replaceValIndex = 0;
-
-                /* Update buffer if it ended */
-                if (bufferIndexIn == size) {
-                    size = update_buffer();
-                    if (size <= 0) { /* End of the file */
-                        break;
-                    }
-                    bufferIndexIn = 0;
-                }
-                currentReplaceVal = map[bufferIn[bufferIndexIn] & 0xff];
+        output_bit_sequence(seq);
+        bufferIndexIn++;
+        if (bufferIndexIn == size) {
+            size = update_buffer();
+            if (size == 0) { /* End of the file */
+                break;
             }
-            /* Otherwise, moving to the next bit in current value associated bit sequence */
-            else {
-                replaceValIndex++;
-            }
+            bufferIndexIn = 0;
         }
-        output_byte(current);
+        seq = map[bufferIn[bufferIndexIn] & 0xff];
     }
     flush_buffer();
-    return (BYTE_SIZE - (i + 1)); /* Number of additional zeros in the end of the file */
+    return flush_incomplete_byte();
 }
 
 /*
@@ -212,7 +184,7 @@ int huffman_archive(Data* data) {
     printf("\n\n");
 #endif
     fseek(fileIn, 0, SEEK_SET);
-    heading.ignoreBits = compress_in_blocks(map);
+    heading.ignoreBits = compress(map);
 
 #ifdef DEBUG
     printf("ignoreBits: %d\n\n", heading.ignoreBits);
@@ -298,7 +270,7 @@ static HuffmanTreeNode* get_tree(uint16_t shapeSize, uint16_t leavesSize) {
  * tree - Huffman encoding tree
  * ignoreBits - Bits to ignore in the last element of buffer (to cut redundant bytes in the end of file)
  */
-static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
+static void decompress(HuffmanTreeNode* tree, uint8_t ignoreBits) {
     uint8_t bitIndex = 0;           /* Index of current bit in buffer's byte (0-7) */
     size_t  size = update_buffer(); /* Update buffer and get the size of bytes read from file */
     /*
@@ -323,7 +295,7 @@ static void decompress_in_blocks(HuffmanTreeNode* tree, uint8_t ignoreBits) {
             }
 
             /* Check if we should ignore all the next bits in this byte */
-            if (bufferIndexIn == size - 1 && at_end(fileIn) && bitIndex == BYTE_SIZE - 1 - ignoreBits) {
+            if (bufferIndexIn == size - 1 && bitIndex == BYTE_SIZE - 1 - ignoreBits && at_end(fileIn)) {
                 size = 0;
                 break;
             }
@@ -374,6 +346,6 @@ int huffman_unarchive(Data* data) {
     HuffmanTreeNode* tree = get_tree(treeShapeSize, treeLeavesSize);
 
     /* Decompress file */
-    decompress_in_blocks(tree, ignoreBits);
+    decompress(tree, ignoreBits);
     free_huffman_tree(tree);
 }
