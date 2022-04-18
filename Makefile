@@ -1,5 +1,5 @@
 CC = gcc 
-CFLAGS = -Werror -O2 -Wno-unused-result
+CFLAGS = -Werror -O0 -g -Wno-unused-result
 
 rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 

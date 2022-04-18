@@ -43,7 +43,7 @@ extern FILE* fileOut;
 
 size_t update_buffer();
 void flush_buffer();
-int flush_incomplete_byte();
+int flush_incomplete_bytes();
 void output_byte(uint8_t byte);
 void output_bit_sequence(Sequence seq);
 

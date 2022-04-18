@@ -147,7 +147,7 @@ static uint8_t compress(Sequence* map) {
         seq = map[bufferIn[bufferIndexIn] & 0xff];
     }
     flush_buffer();
-    return flush_incomplete_byte();
+    return flush_incomplete_bytes();
 }
 
 /*

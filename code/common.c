@@ -49,7 +49,7 @@ static void reduce_seq() {
  * Flush last incomplete byte and return the number of
  * extra bits added to the end of file
  */
-int flush_incomplete_byte() {
+int flush_incomplete_bytes() {
     reduce_seq();
     flush_buffer();
 
@@ -66,6 +66,10 @@ int flush_incomplete_byte() {
     return extraBits;
 }
 
+/*
+ * Use this function only when you aren't using **output_bit_sequence()**!!
+ * Otherwise, output only bit sequences (val = byte, size = 8)
+ */
 void output_byte(uint8_t byte) {
     if (bufferIndexOut >= BLOCK_SIZE) {
         flush_buffer(bufferIndexOut);
@@ -75,6 +79,10 @@ void output_byte(uint8_t byte) {
 }
 
 void output_bit_sequence(Sequence seq) {
+    if (seq.size == 0) {
+        return;
+    }
+
     /* Zero out garbage bits */
     uint32_t mask = (1 << seq.size) - 1;
     seq.value &= mask;
